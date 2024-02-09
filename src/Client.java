@@ -46,6 +46,14 @@ public class Client {
         }
     }
     public static void disconnect(){
-
+        try{
+            if(link != null && !link.isClosed()){
+                link.close();
+            }
+        }
+        catch(IOException ioEx){
+            System.out.println("Unable to disconnect!");
+            System.exit(1);
+        }
     }
 }
