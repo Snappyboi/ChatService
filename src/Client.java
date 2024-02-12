@@ -2,14 +2,11 @@ import java.net.*;
 import java.util.*;
 import java.io.*;
 public class Client extends Thread {
-    private static InetAddress host;
-    private static final int PORT = 8080; 
-    private static Socket link;
     public static void main(String[] args){
         Scanner sc = new Scanner(System.in);
         int listenPort;
         int targetPort;
-        String ipAddress;
+        String targetIp;
         System.out.println("Enter port to listen: ");
         
         while(!sc.hasNextInt()){
@@ -21,7 +18,8 @@ public class Client extends Thread {
         sc.nextLine(); //consume empty line
 
         System.out.println("Enter target IP Address: ");
-        ipAddress = sc.nextLine();
+        targetIp = sc.nextLine();
+
         System.out.println("Enter target port: ");
         while(!sc.hasNextInt()){
             System.out.println("Invalid input. Enter a valid port number.");
@@ -31,7 +29,8 @@ public class Client extends Thread {
         targetPort = sc.nextInt();
 
         new Thread(() -> startServer(listenPort)).start();
-        startClient(ipAddress, targetPort);
+        startClient(targetIp, targetPort);
+        sc.close();
     }
     public static void startServer(int listenPort){
         try(ServerSocket serverSocket = new ServerSocket(listenPort)){
@@ -49,29 +48,35 @@ public class Client extends Thread {
         }
     }
     public static void startClient(String targetAddress, int targetPort){
-        try(
+        try{
             Socket targetSocket = new Socket(targetAddress, targetPort);
             BufferedReader input = new BufferedReader(new InputStreamReader(targetSocket.getInputStream()));
             PrintWriter output = new PrintWriter(targetSocket.getOutputStream());
             Scanner keyboard = new Scanner(System.in);
-        ){
+            
             System.out.println("Connected to " + targetSocket.getInetAddress() + ". Type ***EXIT*** to exit.");
 
-            new Thread(() -> {
-                    String response = "";
-                    while(!response.equals(null)){
+            new Thread(() -> { 
+                try{
+                    String response;
+                    while((response = input.readLine()) != null){ 
                         System.out.println(targetSocket.getInetAddress() + ": " + response);
                         if(response.equals("***EXIT***")){
-                            disconnect();
+                            disconnect(targetSocket, input, output);
                             return;
                         }
                     }
+                    keyboard.close();
+                }
+                catch(IOException ioEx){
+                    ioEx.printStackTrace();
+                }
                 }).start();
 
                 String messageOut;
                 while((messageOut = keyboard.nextLine()) != null){
                     if(messageOut.equals("***EXIT***")){
-                        disconnect();
+                        disconnect(targetSocket, input, output);
                         return;
                     }
                     output.println(messageOut);
@@ -91,15 +96,16 @@ public class Client extends Thread {
             ioEx.printStackTrace();
         }
     }
-    public static void disconnect(){
+    public static void disconnect(Socket socket, BufferedReader input, PrintWriter output){
         try{
-            if(link != null && !link.isClosed()){
-                link.close();
-            }
+            input.close();
+            output.close();
+            socket.close();
+            System.out.println("Disconnected.");
+            System.exit(0);
         }
         catch(IOException ioEx){
-            System.out.println("Unable to disconnect!");
-            System.exit(1);
+            ioEx.printStackTrace();
         }
     }
 }
