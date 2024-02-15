@@ -93,6 +93,7 @@ public class GuiClient extends JFrame implements ActionListener{
         int targetPort;
         String targetIP;
         if(event.getSource() == exitButton){
+            running = false;
             disconnect();
         }
         if(event.getSource() == connectButton){
@@ -129,7 +130,7 @@ public class GuiClient extends JFrame implements ActionListener{
         try(ServerSocket serverSocket = new ServerSocket(listenPort)){
             System.out.println("Opening port...");
 
-            while(true){
+            while(running){
                 Socket clientSocket = serverSocket.accept();
 
                 Thread chatThread = new Thread(() -> handleChat(clientSocket));
