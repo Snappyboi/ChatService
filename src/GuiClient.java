@@ -4,12 +4,11 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Scanner;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 
-public class GuiClient extends JFrame implements ActionListener{  //need to make all connetion stuff available to disconnect method and add disconnect method to actionEvent and Windowclosing
+public class GuiClient extends JFrame implements ActionListener{
     private JTextField targetPortInput;
     private JTextField targetIPInput;
     private JTextField listenPortInput;
@@ -19,11 +18,17 @@ public class GuiClient extends JFrame implements ActionListener{  //need to make
     private JButton exitButton;
     private JButton connectButton;
     private JPanel buttonPanel;
+    private JLabel listenPortLabel;
+    private JLabel targetPortLabel;
+    private JLabel targetIPLabel;
+    private JLabel messageOutLabel;
+
 
     private ServerSocket serverSocket;
     private Socket targetSocket;
     private BufferedReader input;
     private PrintWriter output;
+    private boolean running = true;
 
      public static void main(String[] args){
         GuiClient frame = new GuiClient();
@@ -37,14 +42,32 @@ public class GuiClient extends JFrame implements ActionListener{  //need to make
         
     }
     public GuiClient(){
-        targetPortInput = new JTextField(20);
-        add(targetPortInput, BorderLayout.NORTH);
-        
-        display = new JTextArea(10,15);
+        setLayout(new GridLayout(0, 2));
 
+        targetPortLabel = new JLabel("Target Port ");
+        targetPortInput = new JTextField(10);
+        add(targetPortLabel);
+        add(targetPortInput);
+        
+        listenPortLabel = new JLabel("Listen Port ");
+        listenPortInput = new JTextField(10);
+        add(listenPortLabel);
+        add(listenPortInput);
+
+        targetIPLabel = new JLabel("Target IP ");
+        targetIPInput = new JTextField(10);
+        add(targetIPLabel);
+        add(targetIPInput);
+
+        messageOutLabel = new JLabel("Message out: ");
+        messageOutInput = new JTextField(10);
+        add(messageOutLabel);
+        add(messageOutInput);
+        
+        
+        display = new JTextArea(25,25);
         display.setWrapStyleWord(true);
         display.setLineWrap(true);
-
         add(new JScrollPane(display), BorderLayout.CENTER);
 
         buttonPanel = new JPanel();
@@ -65,34 +88,39 @@ public class GuiClient extends JFrame implements ActionListener{  //need to make
 
 
     }
-    public void ActionPerformed(ActionEvent event){
+    public void actionPerformed(ActionEvent event){
         int listenPort;
         int targetPort;
         String targetIP;
         if(event.getSource() == exitButton){
             disconnect();
-            System.exit(0);
         }
         if(event.getSource() == connectButton){
-            if(listenPortInput.getText() == ""){
+            if(listenPortInput.getText().equals("")){
                 display.append("Enter a valid listen port.");
             }
-            else if(targetPortInput.getText() == ""){
+            else if(targetPortInput.getText().equals("")){
                 display.append("Enter a valid target port.");
             }
-            else if(targetIPInput.getText() == ""){
+            else if(targetIPInput.getText().equals("")){
                 display.append("Enter a valid target IP address.");
             }
             else{
                 listenPort = Integer.parseInt(listenPortInput.getText());
                 targetPort = Integer.parseInt(targetPortInput.getText());
                 targetIP = targetIPInput.getText();
-                new Thread(() -> startServer(listenPort)).start();
+                Thread serverThread = new Thread(() -> startServer(listenPort));
+                serverThread.setDaemon(true);
+                serverThread.start();
                 startClient(targetIP, targetPort);
             }
         }
         if(event.getSource() == sendButton){
-            new Thread(() -> handleChat(targetSocket)).start();
+            if(!messageOutInput.getText().isEmpty()){
+                sendMessage(messageOutInput.getText());
+                messageOutInput.setText("");
+            }
+                
         }
 
         
@@ -103,27 +131,28 @@ public class GuiClient extends JFrame implements ActionListener{  //need to make
 
             while(true){
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("Connected to: " + clientSocket.getInetAddress());
 
-                new Thread(() -> handleChat(clientSocket)).start();
+                Thread chatThread = new Thread(() -> handleChat(clientSocket));
+                chatThread.setDaemon(true); //I know we haven't covered these but these threads aren't dying and are ruining my disconnect method
+                chatThread.start();
             }
         }
         catch(IOException ioEx){
             ioEx.printStackTrace();
         }
     }
-    public void startClient(String targetAddress, int targetPort){ //this isnt static, we'll see how that goes
+    public void startClient(String targetAddress, int targetPort){
         try{
             targetSocket = new Socket(targetAddress, targetPort);
             input = new BufferedReader(new InputStreamReader(targetSocket.getInputStream()));
-            output = new PrintWriter(targetSocket.getOutputStream());
-            System.out.println("Connected to " + targetSocket.getInetAddress() + ". Type ***EXIT*** to exit.");
+            output = new PrintWriter(targetSocket.getOutputStream(), true);
+            display.append("Connected to: " + targetSocket.getInetAddress() + "\n");
 
             new Thread(() -> { 
                 try{
                     String response;
-                    while((response = input.readLine()) != null){ 
-                        System.out.println(targetSocket.getInetAddress() + ": " + response);
+                    while(running && (response = input.readLine()) != null){ 
+                        display.append(targetSocket.getInetAddress() + ": " + response + "\n");
                     }
                 }
                 catch(IOException ioEx){
@@ -133,28 +162,44 @@ public class GuiClient extends JFrame implements ActionListener{  //need to make
         }catch(IOException ioEx){
             ioEx.printStackTrace();
         }
+        
+        
     }
     public void handleChat(Socket clientSocket){
         try(BufferedReader input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))){
             String message;
-            while((message = messageOutInput.getText()) != null){
-                System.out.println(clientSocket.getInetAddress() + ": " + message);
+            while(running && (message = input.readLine()) != null){
+                display.append(clientSocket.getInetAddress() + ": " + message + "\n");
             }
         }
         catch(IOException ioEx){
             ioEx.printStackTrace();
         }
     }
-    public void disconnect(){
-        try{
-            input.close();
-            output.close();
-            targetSocket.close();
-            System.out.println("Disconnected.");
-            System.exit(0);
-        }
-        catch(IOException ioEx){
+    public void disconnect() {
+        try {
+            if (input != null)
+                input.close();
+            if (output != null)
+                output.close();
+            if (targetSocket != null)
+                targetSocket.close();
+        } catch (IOException ioEx) {
             ioEx.printStackTrace();
+        } finally {
+            SwingUtilities.invokeLater(() -> {
+                running = false;
+                setVisible(false);
+                System.exit(0);
+            });
+        }
+    }
+    
+    public void sendMessage(String message){
+        if(output != null){
+            display.append("You: " + message + "\n");
+            output.println(message);
+            output.flush();
         }
     }
 }
