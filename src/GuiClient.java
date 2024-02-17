@@ -97,22 +97,22 @@ public class GuiClient extends JFrame implements ActionListener{
             disconnect();
         }
         if(event.getSource() == connectButton){
-            if(listenPortInput.getText().equals("")){
+            if(listenPortInput.getText().isEmpty()){
                 display.append("Enter a valid listen port.");
             }
-            else if(targetPortInput.getText().equals("")){
+            else if(targetPortInput.getText().isEmpty()){
                 display.append("Enter a valid target port.");
             }
-            else if(targetIPInput.getText().equals("")){
+            else if(targetIPInput.getText().isEmpty()){
                 display.append("Enter a valid target IP address.");
             }
             else{
                 listenPort = Integer.parseInt(listenPortInput.getText());
                 targetPort = Integer.parseInt(targetPortInput.getText());
                 targetIP = targetIPInput.getText();
-                Thread serverThread = new Thread(() -> startServer(listenPort));
-                serverThread.setDaemon(true);
-                serverThread.start();
+                /*Thread serverThread = */new Thread(() -> startServer(listenPort)).start();
+                //serverThread.setDaemon(true);
+                //serverThread.start();
                 startClient(targetIP, targetPort);
             }
         }
@@ -132,10 +132,11 @@ public class GuiClient extends JFrame implements ActionListener{
 
             while(running){
                 Socket clientSocket = serverSocket.accept();
+                handleChat(clientSocket);
 
-                Thread chatThread = new Thread(() -> handleChat(clientSocket));
-                chatThread.setDaemon(true); //I know we haven't covered these but these threads aren't dying and are ruining my disconnect method
-                chatThread.start();
+                //Thread chatThread = new Thread(() -> handleChat(clientSocket));
+                //chatThread.setDaemon(true); //I know we haven't covered these but these threads aren't dying and are ruining my disconnect method
+                //chatThread.start();
             }
         }
         catch(IOException ioEx){
@@ -152,8 +153,10 @@ public class GuiClient extends JFrame implements ActionListener{
             new Thread(() -> { 
                 try{
                     String response;
-                    while(running && (response = input.readLine()) != null){ 
-                        display.append(targetSocket.getInetAddress() + ": " + response + "\n");
+                    while(running){ 
+                        if((response = input.readLine()) != null){
+                            display.append(targetSocket.getInetAddress() + ": " + response + "\n");
+                        }
                     }
                 }
                 catch(IOException ioEx){
