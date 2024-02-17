@@ -111,9 +111,7 @@ public class GuiClient2 extends JFrame implements ActionListener{
                 listenPort = Integer.parseInt(listenPortInput.getText());
                 targetPort = Integer.parseInt(targetPortInput.getText());
                 targetIP = targetIPInput.getText();
-                /*Thread serverThread = */new Thread(() -> startServer(listenPort)).start();
-                //serverThread.setDaemon(true);
-                //serverThread.start();
+                new Thread(() -> startServer(listenPort)).start();
                 startClient(targetIP, targetPort);
             }
         }
@@ -127,15 +125,11 @@ public class GuiClient2 extends JFrame implements ActionListener{
     }
     public void startServer(int listenPort){
         try(ServerSocket serverSocket = new ServerSocket(listenPort)){
-            System.out.println("Opening port...");
+            display.append("Opening port...");
 
             while(running){
                 Socket clientSocket = serverSocket.accept();
                 handleChat(clientSocket);
-
-                //Thread chatThread = new Thread(() -> handleChat(clientSocket));
-                //chatThread.setDaemon(true); //I know we haven't covered these but these threads aren't dying and are ruining my disconnect method
-                //chatThread.start();
             }
         }
         catch(IOException ioEx){
@@ -149,20 +143,10 @@ public class GuiClient2 extends JFrame implements ActionListener{
             output = new PrintWriter(targetSocket.getOutputStream(), true);
             display.append("Connected to: " + targetSocket.getInetAddress() + "\n");
 
-            new Thread(() -> { 
-                try{
-                    String response;
-                    while(running){ 
-                        if((response = input.readLine()) != null){
-                            display.append(targetSocket.getInetAddress() + ": " + response + "\n");
-                        }
-                    }
-                }
-                catch(IOException ioEx){
-                    ioEx.printStackTrace();
-                }
-                }).start();
-        }catch(IOException ioEx){
+            new Thread(() -> handleChat(targetSocket)).start();
+        
+        }
+        catch(IOException ioEx){
             ioEx.printStackTrace();
         }
         
