@@ -8,7 +8,7 @@ import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 
-public class GuiClient extends JFrame implements ActionListener{
+public class GuiClient2 extends JFrame implements ActionListener{
     private JTextField targetPortInput;
     private JTextField targetIPInput;
     private JTextField listenPortInput;
@@ -24,24 +24,24 @@ public class GuiClient extends JFrame implements ActionListener{
     private JLabel messageOutLabel;
 
 
-    private ServerSocket serverSocket;
     private Socket targetSocket;
     private BufferedReader input;
     private PrintWriter output;
     private boolean running = true;
 
      public static void main(String[] args){
-        GuiClient frame = new GuiClient();
+        GuiClient2 frame = new GuiClient2();
         frame.setSize(400,300);
         frame.setVisible(true);
         frame.addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent event){
+                frame.dispose();
                 System.exit(0);
             }
         });
         
     }
-    public GuiClient(){
+    public GuiClient2(){
         setLayout(new GridLayout(0, 2));
 
         targetPortLabel = new JLabel("Target Port ");
@@ -93,6 +93,7 @@ public class GuiClient extends JFrame implements ActionListener{
         int targetPort;
         String targetIP;
         if(event.getSource() == exitButton){
+            dispose();
             running = false;
             disconnect();
         }
@@ -113,7 +114,7 @@ public class GuiClient extends JFrame implements ActionListener{
                 /*Thread serverThread = */new Thread(() -> startServer(listenPort)).start();
                 //serverThread.setDaemon(true);
                 //serverThread.start();
-                new Thread (() -> startClient(targetIP, targetPort)).start();
+                startClient(targetIP, targetPort);
             }
         }
         if(event.getSource() == sendButton){
@@ -123,8 +124,6 @@ public class GuiClient extends JFrame implements ActionListener{
             }
                 
         }
-
-        
     }
     public void startServer(int listenPort){
         try(ServerSocket serverSocket = new ServerSocket(listenPort)){
@@ -194,6 +193,7 @@ public class GuiClient extends JFrame implements ActionListener{
             SwingUtilities.invokeLater(() -> {
                 running = false;
                 setVisible(false);
+                System.out.println("Disconnected. ");
                 System.exit(0);
             });
         }
